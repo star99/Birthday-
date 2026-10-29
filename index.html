@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="preload" as="image" href="/assets/flower/flower.png" />
+    <link rel="preload" as="fetch" href="/assets/sounds/krish_kapoor.mp3" crossorigin="anonymous" />
+    <link rel="stylesheet" href="/assets/app.css" />
+    <link rel="stylesheet" href="/assets/flower-reveal.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500;1,6..96,700&family=Caveat:wght@500;600;700&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,600;1,700&family=Dancing+Script:wght@600;700&family=Great+Vibes&family=Italianno&family=Karla:wght@300;400;500&family=Parisienne&family=Pinyon+Script&family=Playfair+Display:ital,wght@1,400;1,600;1,700&family=Poppins:wght@300;400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/lemon-milk-pro" />
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/lemon-milk" />
+    <title>For you, my bunny</title>
+    <meta
+      name="description"
+      content="A private digital keepsake for my bunny. Enter our four little numbers to open the garden."
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      (function () {
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+          return;
+        }
+        var pending = false;
+        var lastX = null;
+        var lastY = null;
+        function apply() {
+          pending = false;
+          var main = document.querySelector("main");
+          var glow = document.getElementById("cursor-glow");
+          if (!main || !glow) return;
+          var rect = main.getBoundingClientRect();
+          glow.style.left = lastX - rect.left + "px";
+          glow.style.top = lastY - rect.top + "px";
+        }
+        window.addEventListener("pointermove", function (e) {
+          lastX = e.clientX;
+          lastY = e.clientY;
+          if (!pending) {
+            pending = true;
+            requestAnimationFrame(apply);
+          }
+        }, { passive: true });
+      })();
+    </script>
+  </body>
+</html>
