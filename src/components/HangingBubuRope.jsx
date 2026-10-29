@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import audioManager from '../utils/audioManager.js';
 
 /**
  * HangingBubuRope Component
@@ -47,29 +48,15 @@ export default function HangingBubuRope({ onDismiss, onRedirect }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Dual-layer audio helper: HTML5 Audio + Procedural Web Audio API fallback
+  // Shared audio synthesizer for Bubu sounds (uses global audioManager context so background song never pauses)
   const playBubuSound = (type = 'squeak') => {
-    try {
-      const src =
-        type === 'activate'
-          ? '/assets/sounds/bubu_activate.wav'
-          : '/assets/sounds/bubu_pull_squeak.wav';
-      const audio = new Audio(src);
-      audio.volume = type === 'activate' ? 0.95 : 0.8;
-      const promise = audio.play();
-      if (promise !== undefined) {
-        promise.catch(() => playProceduralBubuSound(type));
-      }
-    } catch (_) {
-      playProceduralBubuSound(type);
-    }
+    playProceduralBubuSound(type);
   };
 
   const playProceduralBubuSound = (type) => {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = audioManager.getAudioContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
 
       if (type === 'activate') {

@@ -42,12 +42,11 @@ export default function RoyalScrapbookScreen({ onBack, customPhotos, onNext }) {
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 });
   const hasSwipedRef = useRef(false);
 
-  // Audio synthesizer for authentic page turn sound
+  // Audio synthesizer for authentic page turn sound using shared audio context
   const playPageSound = useCallback(() => {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = audioManager.getAudioContext();
+      if (!ctx) return;
 
       const bufferSize = ctx.sampleRate * 0.16;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);

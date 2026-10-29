@@ -1,28 +1,21 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import audioManager from '../utils/audioManager.js';
 
 /**
  * CelestialLoveLetterDialog Component
  * 
- * Features:
- * 1. Deep Midnight Black Screen Dialog:
- *    - Filled with 85+ sparkling, twinkling stars.
- *    - Interactive sparkle bursts on background taps and mouse movements.
- * 2. One Movable & Sparkable Moon with Shining Star:
- *    - Luminous golden crescent moon freely draggable across the screen.
- *    - Emits celestial sparkles and chimes when moved or tapped.
- *    - Embedded 4-point rotating golden shining star in the crescent curve.
- * 3. Letter Box (from https://scrapbook-2jf.pages.dev/):
- *    - Closed envelope with gentle bobbing animation.
- *    - Caption: "For you, my baby." and hint "(tap to open)".
- *    - Interactive opening: morphs to opened envelope with flower & sparkle burst.
- * 4. Pure Clean Love Letters (from https://achuu936.vercel.app/love-letter):
- *    - Headings, tags, and "Letter 1" counters REMOVED as requested.
- *    - Clean, modern, highly readable "normal style" font ('Poppins', 'Quicksand', sans-serif).
- *    - Second letter removed, and remaining letters from link 2 added.
- *    - All signatures clean: "~ Dudu ❤️" (removed "forever your dudu").
- *    - Swipe left / right and navigation buttons.
- * 5. "Not enough? 💖" Option:
- *    - Prominent romantic button redirecting to the Royal Scrapbook page!
+ * Performance & Reliability Optimizations for Mobile:
+ * 1. Shares the global AudioManager AudioContext:
+ *    - Never spawns new AudioContexts on tap/flip/sparkle.
+ *    - Protects the background song from being muted or suspended by iOS Safari context limits.
+ * 2. Hardware-accelerated GPU direct transform on card swipe:
+ *    - Bypasses React state re-renders on touchmove, giving smooth 60fps/120fps gesture response.
+ * 3. Mobile-optimized stars:
+ *    - Reduces star count on mobile (24 stars) and removes heavy CSS drop-shadow filters from keyframe loops.
+ * 4. Moon drag direct DOM transform:
+ *    - Draggable golden moon updates position directly without flooding React state.
+ * 5. Lightweight sparkles:
+ *    - Self-cleaning without continuous timer intervals.
  */
 export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough }) {
   // Modal stage: 'envelope' (tap to open) | 'letters' (reading cards)
@@ -30,27 +23,27 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
   const [isOpeningEnvelope, setIsOpeningEnvelope] = useState(false);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
 
-  // Swipe / Drag state for cards
-  const [cardDragX, setCardDragX] = useState(0);
-  const [isDraggingCard, setIsDraggingCard] = useState(false);
+  // Card element ref & drag tracking
+  const cardRef = useRef(null);
+  const isDraggingCardRef = useRef(false);
   const cardStartPos = useRef({ x: 0, y: 0 });
   const cardDragXRef = useRef(0);
 
-  // Movable Moon State
-  const [moonPos, setMoonPos] = useState({ x: 74, y: 15 }); // Percentage (%)
-  const [isDraggingMoon, setIsDraggingMoon] = useState(false);
-  const moonDragOffset = useRef({ startX: 0, startY: 0, initialMoonX: 0, initialMoonY: 0 });
+  // Movable Moon Element ref & drag tracking
+  const moonRef = useRef(null);
+  const isDraggingMoonRef = useRef(false);
+  const moonDragOffset = useRef({ startX: 0, startY: 0, initialMoonX: 74, initialMoonY: 15 });
+  const currentMoonPos = useRef({ x: 74, y: 15 });
 
   // Dynamic sparkles array
   const [sparkles, setSparkles] = useState([]);
   const sparkleIdCounter = useRef(0);
 
-  // Web Audio Synthesizer
+  // Web Audio Synthesizer: uses shared audioManager context to NEVER pause background music
   const playSound = useCallback((type) => {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = audioManager.getAudioContext();
+      if (!ctx) return;
 
       if (type === 'sparkle') {
         const freqs = [1046.5, 1318.5, 1567.98, 2093.0];
@@ -90,14 +83,14 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(800, ctx.currentTime);
-        filter.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.2);
+        filter.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.18);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
         osc.connect(filter);
         filter.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.24);
+        osc.stop(ctx.currentTime + 0.22);
       }
     } catch {
       // Audio fallback
@@ -150,126 +143,79 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
     },
   ], []);
 
-  // Generate 85 background twinkling stars
+  // Background stars (lightweight count on mobile for butter-smooth 60fps)
   const stars = useMemo(() => {
     const starChars = ['✦', '★', '✧', '•', '⋆'];
-    return Array.from({ length: 85 }, (_, i) => ({
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const count = isMobile ? 24 : 52;
+    return Array.from({ length: count }, (_, i) => ({
       id: i,
       x: (Math.random() * 96 + 2).toFixed(1),
       y: (Math.random() * 96 + 2).toFixed(1),
-      size: (Math.random() * 9 + 4).toFixed(1),
+      size: (Math.random() * 8 + 4).toFixed(1),
       char: starChars[Math.floor(Math.random() * starChars.length)],
-      twinkleDur: (Math.random() * 3 + 1.8).toFixed(2),
-      delay: (Math.random() * 4).toFixed(2),
-      opacity: (Math.random() * 0.5 + 0.45).toFixed(2),
+      twinkleDur: (Math.random() * 3 + 2).toFixed(2),
+      delay: (Math.random() * 3).toFixed(2),
+      opacity: (Math.random() * 0.45 + 0.45).toFixed(2),
       color: Math.random() > 0.4 ? '#ffffff' : Math.random() > 0.5 ? '#ffe8a3' : '#ffd1dc',
     }));
   }, []);
 
-  // Spawn visual sparkle particle
+  // Spawn visual sparkle particles
   const spawnSparkle = useCallback((clientX, clientY, count = 3) => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const maxCount = isMobile ? Math.min(count, 3) : count;
     const newSparkles = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < maxCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * 35 + 10;
+      const dist = Math.random() * 28 + 8;
       newSparkles.push({
         id: sparkleIdCounter.current++,
         x: clientX,
         y: clientY,
         tx: Math.cos(angle) * dist,
         ty: Math.sin(angle) * dist,
-        size: Math.random() * 12 + 6,
+        size: Math.random() * 8 + 6,
         color: Math.random() > 0.3 ? '#ffe680' : '#ff9ebb',
       });
     }
-    setSparkles((prev) => [...prev.slice(-40), ...newSparkles]);
+    setSparkles((prev) => [...prev.slice(-12), ...newSparkles]);
+    setTimeout(() => {
+      setSparkles((prev) => prev.slice(newSparkles.length));
+    }, 650);
   }, []);
-
-  // Clean up sparkles
-  useEffect(() => {
-    if (sparkles.length === 0) return;
-    const timer = setTimeout(() => {
-      setSparkles((prev) => prev.slice(5));
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [sparkles]);
 
   // Handle Background Click / Tap
   const handleBackgroundTap = (e) => {
     if (e.target.dataset.bg === 'true') {
-      spawnSparkle(e.clientX, e.clientY, 5);
+      spawnSparkle(e.clientX, e.clientY, 4);
       playSound('sparkle');
     }
   };
 
-  // Movable Moon drag handlers
+  // Movable Moon drag handlers with direct DOM transform
   const handleMoonPointerDown = (e) => {
     e.stopPropagation();
-    setIsDraggingMoon(true);
+    isDraggingMoonRef.current = true;
     moonDragOffset.current = {
       startX: e.clientX,
       startY: e.clientY,
-      initialMoonX: moonPos.x,
-      initialMoonY: moonPos.y,
+      initialMoonX: currentMoonPos.current.x,
+      initialMoonY: currentMoonPos.current.y,
     };
-    spawnSparkle(e.clientX, e.clientY, 6);
+    spawnSparkle(e.clientX, e.clientY, 4);
     playSound('sparkle');
   };
 
-  useEffect(() => {
-    const handlePointerMove = (e) => {
-      if (isDraggingMoon) {
-        const deltaX = ((e.clientX - moonDragOffset.current.startX) / window.innerWidth) * 100;
-        const deltaY = ((e.clientY - moonDragOffset.current.startY) / window.innerHeight) * 100;
-        const nextX = Math.min(92, Math.max(8, moonDragOffset.current.initialMoonX + deltaX));
-        const nextY = Math.min(88, Math.max(6, moonDragOffset.current.initialMoonY + deltaY));
-        setMoonPos({ x: nextX, y: nextY });
-
-        if (Math.random() > 0.6) {
-          spawnSparkle(e.clientX, e.clientY, 2);
-        }
-      }
-
-      if (isDraggingCard) {
-        const deltaX = e.clientX - cardStartPos.current.x;
-        cardDragXRef.current = deltaX;
-        setCardDragX(deltaX);
-      }
-    };
-
-    const handlePointerUp = () => {
-      if (isDraggingMoon) {
-        setIsDraggingMoon(false);
-      }
-      if (isDraggingCard) {
-        setIsDraggingCard(false);
-        const finalDragX = cardDragXRef.current;
-        if (finalDragX < -55) {
-          handleNextLetter();
-        } else if (finalDragX > 55) {
-          handlePrevLetter();
-        }
-        cardDragXRef.current = 0;
-        setCardDragX(0);
-      }
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [isDraggingMoon, isDraggingCard]);
-
   // Card Swipe / Pointer Down handlers
   const handleCardPointerDown = (e) => {
-    setIsDraggingCard(true);
+    isDraggingCardRef.current = true;
     cardStartPos.current = { x: e.clientX, y: e.clientY };
+    cardDragXRef.current = 0;
   };
 
   // Card Navigation
-  const handleNextLetter = () => {
+  const handleNextLetter = useCallback(() => {
     if (currentLetterIndex < letters.length - 1) {
       setCurrentLetterIndex((prev) => prev + 1);
       playSound('flip');
@@ -279,14 +225,68 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         onNotEnough();
       }
     }
-  };
+  }, [currentLetterIndex, letters.length, onNotEnough, playSound]);
 
-  const handlePrevLetter = () => {
+  const handlePrevLetter = useCallback(() => {
     if (currentLetterIndex > 0) {
       setCurrentLetterIndex((prev) => prev - 1);
       playSound('flip');
     }
-  };
+  }, [currentLetterIndex, playSound]);
+
+  // Global Pointer Events for zero-lag drag
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      // 1. Smooth Moon Drag
+      if (isDraggingMoonRef.current && moonRef.current) {
+        const deltaX = ((e.clientX - moonDragOffset.current.startX) / window.innerWidth) * 100;
+        const deltaY = ((e.clientY - moonDragOffset.current.startY) / window.innerHeight) * 100;
+        const nextX = Math.min(92, Math.max(8, moonDragOffset.current.initialMoonX + deltaX));
+        const nextY = Math.min(88, Math.max(6, moonDragOffset.current.initialMoonY + deltaY));
+        currentMoonPos.current = { x: nextX, y: nextY };
+        moonRef.current.style.left = `${nextX}%`;
+        moonRef.current.style.top = `${nextY}%`;
+      }
+
+      // 2. Ultra-Smooth Card Drag directly on GPU (no React state lag)
+      if (isDraggingCardRef.current && cardRef.current) {
+        const deltaX = e.clientX - cardStartPos.current.x;
+        cardDragXRef.current = deltaX;
+        cardRef.current.style.transform = `translateX(${deltaX}px) rotate(${deltaX * 0.04}deg)`;
+        cardRef.current.style.transition = 'none';
+      }
+    };
+
+    const handlePointerUp = () => {
+      // Release Moon
+      if (isDraggingMoonRef.current) {
+        isDraggingMoonRef.current = false;
+      }
+
+      // Release Card
+      if (isDraggingCardRef.current) {
+        isDraggingCardRef.current = false;
+        const finalDragX = cardDragXRef.current;
+        if (cardRef.current) {
+          cardRef.current.style.transition = 'transform 0.32s cubic-bezier(0.2, 0.8, 0.25, 1)';
+          cardRef.current.style.transform = 'translateX(0px) rotate(0deg)';
+        }
+        if (finalDragX < -50) {
+          handleNextLetter();
+        } else if (finalDragX > 50) {
+          handlePrevLetter();
+        }
+        cardDragXRef.current = 0;
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [handleNextLetter, handlePrevLetter]);
 
   // Tap to Open Envelope Handler
   const handleOpenEnvelope = () => {
@@ -296,7 +296,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
 
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    spawnSparkle(cx, cy, 14);
+    spawnSparkle(cx, cy, 10);
 
     setTimeout(() => {
       setStage('letters');
@@ -308,7 +308,6 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
   if (!isOpen) return null;
 
   const currentLetter = letters[currentLetterIndex];
-  const isLastLetter = currentLetterIndex === letters.length - 1;
 
   return (
     <div
@@ -330,39 +329,39 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         touchAction: 'none',
       }}
     >
-      {/* Dynamic Star & Animation Styles */}
+      {/* Dynamic Star & Animation Styles (optimized for mobile 60fps) */}
       <style>{`
         @keyframes letterTwinkle {
-          0%, 100% { opacity: 0.3; transform: scale(0.85); }
-          50% { opacity: 1; transform: scale(1.25); filter: drop-shadow(0 0 5px rgba(255, 230, 160, 0.9)); }
+          0%, 100% { opacity: 0.35; transform: scale(0.85); }
+          50% { opacity: 1; transform: scale(1.15); }
         }
 
         @keyframes moonFloat {
           0%, 100% { transform: translate(-50%, -50%) translateY(0) rotate(0deg); }
-          50% { transform: translate(-50%, -50%) translateY(-8px) rotate(2deg); }
+          50% { transform: translate(-50%, -50%) translateY(-6px) rotate(1.5deg); }
         }
 
         @keyframes starSpinPulse {
           0% { transform: scale(0.85) rotate(0deg); opacity: 0.75; }
-          50% { transform: scale(1.3) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 10px #ffeaa7); }
+          50% { transform: scale(1.25) rotate(180deg); opacity: 1; }
           100% { transform: scale(0.85) rotate(360deg); opacity: 0.75; }
         }
 
         @keyframes envelopeBob {
           0%, 100% { transform: translateY(0px) scale(1); }
-          50% { transform: translateY(-10px) scale(1.02); }
+          50% { transform: translateY(-8px) scale(1.02); }
         }
 
         @keyframes envelopeShake {
           0%, 100% { transform: translateX(0) rotate(0deg); }
-          20% { transform: translateX(-8px) rotate(-3deg); }
-          40% { transform: translateX(8px) rotate(3deg); }
-          60% { transform: translateX(-6px) rotate(-2deg); }
-          80% { transform: translateX(6px) rotate(2deg); }
+          20% { transform: translateX(-6px) rotate(-2deg); }
+          40% { transform: translateX(6px) rotate(2deg); }
+          60% { transform: translateX(-4px) rotate(-1deg); }
+          80% { transform: translateX(4px) rotate(1deg); }
         }
 
         @keyframes cardPopIn {
-          0% { opacity: 0; transform: translateY(35px) scale(0.94); }
+          0% { opacity: 0; transform: translateY(30px) scale(0.95); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
@@ -372,19 +371,14 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         }
 
         @keyframes notEnoughPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(255, 180, 200, 0.6), 0 4px 14px rgba(244, 63, 94, 0.4); }
-          50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 215, 0, 0.8), 0 6px 20px rgba(244, 63, 94, 0.6); }
+          0%, 100% { transform: scale(1); box-shadow: 0 0 14px rgba(255, 180, 200, 0.5), 0 4px 14px rgba(244, 63, 94, 0.4); }
+          50% { transform: scale(1.04); box-shadow: 0 0 22px rgba(255, 215, 0, 0.7), 0 6px 18px rgba(244, 63, 94, 0.55); }
         }
 
         .envelope-interactive {
           cursor: pointer;
-          transition: transform 0.3s ease, filter 0.3s ease;
+          transition: transform 0.3s ease;
           animation: envelopeBob 3.5s ease-in-out infinite;
-        }
-
-        .envelope-interactive:hover {
-          transform: translateY(-8px) scale(1.04);
-          filter: drop-shadow(0 22px 40px rgba(230, 80, 110, 0.45)) drop-shadow(0 0 25px rgba(255, 215, 0, 0.5));
         }
 
         .envelope-interactive:active {
@@ -410,7 +404,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         }
       `}</style>
 
-      {/* 85+ Black Screen Celestial Stars */}
+      {/* Atmospheric Starry Background */}
       {stars.map((s) => (
         <span
           key={s.id}
@@ -422,6 +416,8 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
             color: s.color,
             opacity: s.opacity,
             pointerEvents: 'none',
+            contain: 'strict',
+            willChange: 'transform, opacity',
             animation: `letterTwinkle ${s.twinkleDur}s ease-in-out ${s.delay}s infinite`,
           }}
         >
@@ -453,36 +449,34 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
 
       {/* ONE MOVABLE AND SPARKABLE MOON WITH SHINING STAR IN IT */}
       <div
+        ref={moonRef}
         onPointerDown={handleMoonPointerDown}
         style={{
           position: 'absolute',
-          left: `${moonPos.x}%`,
-          top: `${moonPos.y}%`,
+          left: `${currentMoonPos.current.x}%`,
+          top: `${currentMoonPos.current.y}%`,
           transform: 'translate(-50%, -50%)',
           zIndex: 40,
-          cursor: isDraggingMoon ? 'grabbing' : 'grab',
+          cursor: 'grab',
           touchAction: 'none',
-          animation: isDraggingMoon ? 'none' : 'moonFloat 5s ease-in-out infinite',
-          filter: isDraggingMoon
-            ? 'drop-shadow(0 0 35px rgba(255, 230, 130, 0.95)) drop-shadow(0 0 60px rgba(255, 180, 70, 0.6))'
-            : 'drop-shadow(0 0 25px rgba(255, 235, 170, 0.8)) drop-shadow(0 0 45px rgba(255, 200, 90, 0.4))',
-          transition: isDraggingMoon ? 'none' : 'filter 0.3s ease',
+          animation: 'moonFloat 5s ease-in-out infinite',
+          filter: 'drop-shadow(0 0 20px rgba(255, 230, 150, 0.75))',
         }}
-        title="Draggable & Sparkable Moon"
+        title="Draggable Moon"
       >
         <div
           style={{
             position: 'absolute',
-            inset: '-20px',
-            background: 'radial-gradient(circle, rgba(255, 230, 160, 0.35) 0%, transparent 70%)',
+            inset: '-15px',
+            background: 'radial-gradient(circle, rgba(255, 230, 160, 0.3) 0%, transparent 70%)',
             borderRadius: '50%',
             pointerEvents: 'none',
           }}
         />
 
         <svg
-          width="86"
-          height="86"
+          width="82"
+          height="82"
           viewBox="0 0 100 100"
           style={{ display: 'block', overflow: 'visible' }}
         >
@@ -512,17 +506,18 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
           <circle cx="58" cy="76" r="3" fill="url(#craterGlow)" />
         </svg>
 
+        {/* Embedded Rotating Shining Star */}
         <div
           style={{
             position: 'absolute',
-            top: '32px',
-            right: '18px',
+            top: '30px',
+            right: '16px',
             transformOrigin: 'center',
             animation: 'starSpinPulse 3.5s ease-in-out infinite',
             pointerEvents: 'none',
           }}
         >
-          <svg width="28" height="28" viewBox="0 0 40 40">
+          <svg width="26" height="26" viewBox="0 0 40 40">
             <defs>
               <radialGradient id="starShineGrad">
                 <stop offset="0%" stopColor="#ffffff" />
@@ -541,7 +536,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
         <div
           style={{
             position: 'absolute',
-            bottom: '-22px',
+            bottom: '-20px',
             left: '50%',
             transform: 'translateX(-50%)',
             fontSize: '9px',
@@ -567,15 +562,14 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
           width: '38px',
           height: '38px',
           borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.25)',
+          background: 'rgba(255, 255, 255, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
           color: '#ffffff',
           fontSize: '16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          backdropFilter: 'blur(8px)',
           zIndex: 60,
           boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
           transition: 'all 0.25s ease',
@@ -585,7 +579,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
           e.currentTarget.style.transform = 'scale(1.1)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
           e.currentTarget.style.transform = 'scale(1)';
         }}
         title="Close & Return to Cake"
@@ -595,7 +589,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
       </button>
 
       {/* ========================================================
-          STAGE 1: THE LETTER BOX (FROM https://scrapbook-2jf.pages.dev/)
+          STAGE 1: THE LETTER BOX
           ======================================================== */}
       {stage === 'envelope' && (
         <div
@@ -607,7 +601,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
             alignItems: 'center',
             justifyContent: 'center',
             gap: '1.2rem',
-            animation: 'cardPopIn 0.7s cubic-bezier(0.18, 0.9, 0.32, 1.1) forwards',
+            animation: 'cardPopIn 0.6s cubic-bezier(0.18, 0.9, 0.32, 1.1) forwards',
           }}
         >
           {/* Envelope Button with Closed / Opened toggle */}
@@ -620,7 +614,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
               position: 'relative',
               width: 'min(72vw, 310px)',
               aspectRatio: '2987 / 3431',
-              filter: 'drop-shadow(0 20px 36px rgba(160, 20, 45, 0.48)) drop-shadow(0 0 20px rgba(255, 215, 100, 0.3))',
+              filter: 'drop-shadow(0 16px 30px rgba(160, 20, 45, 0.45)) drop-shadow(0 0 16px rgba(255, 215, 100, 0.25))',
             }}
           >
             <img
@@ -634,7 +628,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 height: '100%',
                 objectFit: 'contain',
                 opacity: isOpeningEnvelope ? 0 : 1,
-                transition: 'opacity 0.5s ease',
+                transition: 'opacity 0.45s ease',
               }}
             />
 
@@ -649,12 +643,12 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 height: '100%',
                 objectFit: 'contain',
                 opacity: isOpeningEnvelope ? 1 : 0,
-                transition: 'opacity 0.5s ease',
+                transition: 'opacity 0.45s ease',
               }}
             />
           </div>
 
-          {/* Caption & Hint from Link 1 */}
+          {/* Caption & Hint */}
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <p
               className="normal-letter-text"
@@ -664,7 +658,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 fontWeight: 600,
                 color: '#fff3ee',
                 letterSpacing: '0.02em',
-                textShadow: '0 2px 14px rgba(255, 120, 150, 0.6), 0 0 30px rgba(255, 200, 120, 0.4)',
+                textShadow: '0 2px 14px rgba(255, 120, 150, 0.6), 0 0 24px rgba(255, 200, 120, 0.35)',
               }}
             >
               For you, my baby.
@@ -701,7 +695,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            animation: 'cardPopIn 0.6s cubic-bezier(0.18, 0.9, 0.32, 1.1) forwards',
+            animation: 'cardPopIn 0.5s cubic-bezier(0.18, 0.9, 0.32, 1.1) forwards',
           }}
         >
           {/* Card Stack Container */}
@@ -734,8 +728,9 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
               />
             )}
 
-            {/* Active Foreground Letter Card */}
+            {/* Active Foreground Letter Card with Direct GPU drag */}
             <div
+              ref={cardRef}
               onPointerDown={handleCardPointerDown}
               style={{
                 position: 'relative',
@@ -743,17 +738,16 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 background: 'linear-gradient(140deg, #fffaf6 0%, #faeee5 55%, #f7e6d8 100%)',
                 color: '#2c1810',
                 borderRadius: '22px',
-                padding: '30px 26px 22px',
+                padding: '28px 24px 20px',
                 border: '1.5px solid rgba(220, 175, 160, 0.65)',
                 boxShadow:
-                  'inset 0 0 35px rgba(200, 140, 120, 0.14), 0 20px 45px rgba(0, 0, 0, 0.65), 0 0 25px rgba(255, 180, 190, 0.25)',
-                cursor: isDraggingCard ? 'grabbing' : 'grab',
-                transform: `translateX(${cardDragX}px) rotate(${cardDragX * 0.04}deg)`,
-                transition: isDraggingCard ? 'none' : 'transform 0.35s cubic-bezier(0.2, 0.8, 0.25, 1)',
+                  'inset 0 0 35px rgba(200, 140, 120, 0.14), 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(255, 180, 190, 0.2)',
+                cursor: 'grab',
                 touchAction: 'none',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
+                willChange: 'transform',
               }}
             >
               {/* Delicate Corner Accents */}
@@ -782,7 +776,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 ❦
               </div>
 
-              {/* CLEAN LETTER BODY TEXT (NORMAL, BEAUTIFUL, HIGHLY READABLE STYLE) */}
+              {/* CLEAN LETTER BODY TEXT */}
               <div
                 className="letter-scroll-area normal-letter-text"
                 style={{
@@ -865,7 +859,7 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                 onClick={handlePrevLetter}
                 disabled={currentLetterIndex === 0}
                 style={{
-                  background: currentLetterIndex === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.15)',
+                  background: currentLetterIndex === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255, 255, 255, 0.18)',
                   border: '1px solid rgba(255, 255, 255, 0.25)',
                   color: currentLetterIndex === 0 ? 'rgba(255,255,255,0.25)' : '#ffffff',
                   borderRadius: '999px',
@@ -873,7 +867,6 @@ export default function CelestialLoveLetterDialog({ isOpen, onClose, onNotEnough
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: currentLetterIndex === 0 ? 'not-allowed' : 'pointer',
-                  backdropFilter: 'blur(6px)',
                   transition: 'all 0.2s ease',
                 }}
               >

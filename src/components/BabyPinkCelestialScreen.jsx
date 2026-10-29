@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import CelestialLoveLetterDialog from './CelestialLoveLetterDialog.jsx';
 import RoyalScrapbookScreen from './RoyalScrapbookScreen.jsx';
 import KineticBirthdayFinaleScreen from './KineticBirthdayFinaleScreen.jsx';
+import audioManager from '../utils/audioManager.js';
 
 /**
  * BabyPinkCelestialScreen Component
@@ -76,9 +77,8 @@ export default function BabyPinkCelestialScreen({ onBack }) {
   // Web Audio Synthesizer: Slice, Candle Blow, and Realistic Fireworks (Launch Whistle, Boom, Crackle)
   const playSound = useCallback((type) => {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = audioManager.getAudioContext();
+      if (!ctx) return;
 
       if (type === 'slice') {
         // Metallic blade swoosh
@@ -490,6 +490,17 @@ export default function BabyPinkCelestialScreen({ onBack }) {
       colors: ['#ffd166', '#ff85a1', '#ffffff'],
       scalar: 0.9,
     });
+
+    // Safely stop background fireworks animation before opening message modal to save 100% mobile CPU/GPU
+    if (fireworksEngineRef.current.animId) {
+      cancelAnimationFrame(fireworksEngineRef.current.animId);
+      fireworksEngineRef.current.animId = null;
+    }
+    fireworksEngineRef.current.rockets = [];
+    fireworksEngineRef.current.particles = [];
+    bladePoints.current = [];
+    isDraggingCake.current = false;
+    isDraggingSlider.current = false;
 
     setTimeout(() => {
       setIsGiftBouncing(false);
@@ -1209,8 +1220,8 @@ export default function BabyPinkCelestialScreen({ onBack }) {
         }
       `}</style>
 
-      {/* Hide celestial cake background when scrapbook or finale is active for pure 60fps performance */}
-      {!showScrapbook && !showFinale && (
+      {/* Hide celestial cake background when letter dialog, scrapbook or finale is active for pure 60fps performance */}
+      {!showScrapbook && !showFinale && !isLetterModalOpen && (
         <>
           {/* Fullscreen Fireworks Canvas */}
           <canvas ref={fireworksCanvasRef} className="fireworks-canvas" />

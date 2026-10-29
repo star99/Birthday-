@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import confetti from 'canvas-confetti';
+import audioManager from '../utils/audioManager.js';
 
 /**
  * KineticBirthdayFinaleScreen
@@ -22,13 +23,8 @@ export default function KineticBirthdayFinaleScreen({ onBack }) {
   const playChimeChord = useCallback(() => {
     if (!soundEnabled) return;
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = audioCtxRef.current || new AudioCtx();
-      audioCtxRef.current = ctx;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
+      const ctx = audioManager.getAudioContext();
+      if (!ctx) return;
 
       // Harmonic frequencies for a magical celebration chord (Eb major 9 / sparkles)
       const freqs = [311.13, 392.00, 466.16, 587.33, 698.46, 932.33];

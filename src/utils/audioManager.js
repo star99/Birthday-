@@ -44,6 +44,7 @@ class AudioManager {
     this.targetVolume = 0.55;     // Medium level sound
     this.isLoaded = false;
     this.loadPromise = null;
+    this.wasPlayingBeforeHide = false;
     this.listeners = new Set();
 
     if (typeof window !== 'undefined') {
@@ -75,6 +76,18 @@ class AudioManager {
     }
   }
 
+  // Get shared AudioContext for all sound effects across the app
+  getAudioContext() {
+    if (!this.audioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.audioCtx = new AudioCtx();
+    }
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {});
+    }
+    return this.audioCtx;
+  }
+
   // Unlocks audio on mobile Safari and Android
   unlockAudio() {
     // 1. Set audioSession to 'playback' on iOS Safari 15+ so silent switch doesn't mute
@@ -99,11 +112,16 @@ class AudioManager {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx) this.audioCtx = new AudioCtx();
       }
-      if (this.audioCtx && this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume().catch(() => {});
-      }
-      // Play 1-sample silent Web Audio buffer at system sample rate
       if (this.audioCtx) {
+        this.audioCtx.onstatechange = () => {
+          if (this.isPlaying && this.audioCtx && this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume().catch(() => {});
+          }
+        };
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+        // Play 1-sample silent Web Audio buffer at system sample rate
         const sr = this.audioCtx.sampleRate || 44100;
         const buffer = this.audioCtx.createBuffer(1, 1, sr);
         const source = this.audioCtx.createBufferSource();
@@ -200,25 +218,49 @@ class AudioManager {
     this.fallbackAudio.volume = this.targetVolume;
     this.fallbackAudio.preload = 'auto';
 
-    // HTML5 audio loop handler
+    // HTML5 audio loop handler with safe retry on mobile
     this.fallbackAudio.addEventListener('timeupdate', () => {
       if (this.activeEngine === 'html5' && this.isLooping && this.fallbackAudio.currentTime >= this.loopEnd) {
-        this.fallbackAudio.currentTime = this.loopStart;
+        try {
+          this.fallbackAudio.currentTime = this.loopStart;
+          if (this.fallbackAudio.paused && this.isPlaying) {
+            this.fallbackAudio.play().catch(() => {});
+          }
+        } catch (_) {}
       }
     });
   }
 
-  // Listen for tab hide or window close to stop sound
+  // Listen for tab hide or window close to stop sound, and auto-revive on user touch
   initListeners() {
     window.addEventListener('beforeunload', () => this.stop());
     window.addEventListener('pagehide', () => this.stop());
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
-        this.pause();
-      } else if (document.visibilityState === 'visible' && this.isPlaying) {
-        this.resume();
+        if (this.isPlaying) {
+          this.wasPlayingBeforeHide = true;
+        }
+      } else if (document.visibilityState === 'visible') {
+        if (this.wasPlayingBeforeHide) {
+          this.wasPlayingBeforeHide = false;
+          this.resume();
+        }
       }
     });
+
+    // Mobile watchdog: auto-revive audio context if iOS/Android throttles or stalls it during page transitions
+    const reviveIfStalled = () => {
+      if (!this.isPlaying) return;
+      if (this.audioCtx && this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+      if (this.activeEngine === 'html5' && this.fallbackAudio && this.fallbackAudio.paused) {
+        this.fallbackAudio.play().catch(() => {});
+      }
+    };
+    window.addEventListener('touchstart', reviveIfStalled, { passive: true });
+    window.addEventListener('touchend', reviveIfStalled, { passive: true });
+    window.addEventListener('click', reviveIfStalled, { passive: true });
   }
 
   // Start playback when blossom is touched: from 0:48 at medium volume
@@ -359,6 +401,9 @@ class AudioManager {
   _startWebAudioLoopOnly() {
     try {
       if (!this.audioCtx || !this.loopBuffer) return;
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
       const now = this.audioCtx.currentTime;
 
       this.masterGain = this.audioCtx.createGain();
