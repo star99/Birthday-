@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand-Draw Your Heart QR Code 🌸</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #faf6f8;
+      font-family: 'Poppins', -apple-system, sans-serif;
+      color: #3b0d18;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+    .wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #be123c;
+      background: #ffe4e6;
+      border: 1px solid #fecdd3;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-style: italic;
+      font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+      color: #881337;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #9f1239;
+      max-width: 600px;
+      margin: 0 auto 20px;
+      line-height: 1.5;
+    }
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 26px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: #be123c;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(190, 18, 60, 0.3);
+    }
+    .btn-primary:hover {
+      background: #9f1239;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: #ffffff;
+      color: #881337;
+      border: 1px solid #fecdd3;
+    }
+    .btn-secondary:hover {
+      background: #fff1f2;
+      transform: translateY(-2px);
+    }
+
+    .main-grid-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      margin-bottom: 30px;
+    }
+    @media (min-width: 820px) {
+      .main-grid-layout {
+        grid-template-columns: 1.1fr 0.9fr;
+      }
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid #ffe4e6;
+      box-shadow: 0 10px 25px rgba(136, 19, 55, 0.06);
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #881337;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Interactive QR Matrix */
+    .matrix-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: auto;
+      padding: 10px 0;
+    }
+    .qr-board {
+      display: grid;
+      grid-template-columns: repeat(25, minmax(10px, 14px));
+      grid-template-rows: repeat(25, minmax(10px, 14px));
+      gap: 1px;
+      background: #e2e8f0;
+      padding: 8px;
+      border-radius: 8px;
+      border: 2px solid #be123c;
+    }
+    .cell {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      transition: background 0.1s ease;
+    }
+    .cell.dark {
+      background: #1e293b;
+    }
+    .cell.eye {
+      background: #be123c;
+    }
+    .cell.highlight {
+      background: #fb7185 !important;
+    }
+
+    /* Row coordinate list */
+    .coords-scroll {
+      max-height: 440px;
+      overflow-y: auto;
+      padding-right: 6px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .coord-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px dashed #f1f5f9;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .coord-row:hover {
+      background: #ffe4e6;
+    }
+    .coord-row.active {
+      background: #fecdd3;
+      font-weight: 700;
+      color: #881337;
+    }
+    .coord-row .cols {
+      color: #9f1239;
+    }
+
+    .rules-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .rules-list li {
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    .step-badge {
+      width: 24px;
+      height: 24px;
+      background: #be123c;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Print Preview */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      header, .quick-nav, .coords-card, .rules-card {
+        display: none !important;
+      }
+      .main-grid-layout {
+        display: block !important;
+      }
+      .card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .qr-board {
+        grid-template-columns: repeat(25, 18px);
+        grid-template-rows: repeat(25, 18px);
+        gap: 1px;
+        background: #94a3b8;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <span class="badge">✦ Hand-Drawing Guide ✦</span>
+      <h1>How to Draw a Scannable Heart QR Code</h1>
+      <p class="subtitle">
+        A compact <strong>25×25 grid</strong> designed specifically to be easily drawn by hand on graph paper with a pen or marker. When scanned with any phone, it redirects straight to <strong>https://bunnybirthday.vercel.app</strong>!
+      </p>
+
+      <div class="quick-nav">
+        <button onclick="window.print()" class="btn btn-primary">
+          <span>🖨️</span>
+          <span>Print Grid Worksheet</span>
+        </button>
+        <a href="/assets/qr_drawing_stencil.png" download class="btn btn-secondary">
+          <span>📐</span>
+          <span>Download Blueprint PNG</span>
+        </a>
+        <a href="/assets/qr_hand_drawn_heart.png" download class="btn btn-secondary">
+          <span>❤️</span>
+          <span>Download Hand-Drawn Heart PNG</span>
+        </a>
+        <a href="/qr.html" class="btn btn-secondary">
+          <span>🎨</span>
+          <span>Digital QR Showcase</span>
+        </a>
+      </div>
+    </header>
+
+    <div class="main-grid-layout">
+      <!-- Left: Interactive 25x25 Matrix -->
+      <div class="card">
+        <h2 class="card-title">
+          <span>📐</span>
+          <span>Interactive 25×25 Matrix Map</span>
+        </h2>
+        <p style="font-size: 12.5px; color: #64748b; margin-bottom: 12px;">
+          Hover or click any row below to highlight it here so you never lose your place while coloring on paper!
+        </p>
+
+        <div class="matrix-container">
+          <div id="qrBoard" class="qr-board"></div>
+        </div>
+
+        <div style="margin-top: 14px; font-size: 12px; display: flex; gap: 14px; justify-content: center; color: #64748b;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #be123c; border-radius: 2px;"></span>
+            <span>3 Corner Eyes (7x7)</span>
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #1e293b; border-radius: 2px;"></span>
+            <span>Data Squares to Fill</span>
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 12px; height: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 2px;"></span>
+            <span>Leave Blank</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Right: Row by Row Coordinates -->
+      <div class="card coords-card">
+        <h2 class="card-title">
+          <span>📝</span>
+          <span>Row-by-Row Fill Coordinates</span>
+        </h2>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+          Columns are numbered 1 to 25. Click a row to highlight it:
+        </p>
+
+        <div id="coordsList" class="coords-scroll"></div>
+      </div>
+    </div>
+
+    <!-- Drawing Instructions -->
+    <div class="card rules-card">
+      <h2 class="card-title">
+        <span>✨</span>
+        <span>4 Simple Rules So Your Hand-Drawn QR Scans Instantly</span>
+      </h2>
+
+      <ul class="rules-list">
+        <li>
+          <span class="step-badge">1</span>
+          <div>
+            <strong>Draw the 3 Big Corner "Eyes" First:</strong>
+            <p style="color: #64748b; margin-top: 2px;">
+              Located at Top-Left, Top-Right, and Bottom-Left. Each is a <strong>7×7 square</strong>: outer black border, 1-square white ring inside, and a solid <strong>3×3 black center</strong>. Phone cameras look for this exact pattern to detect the code.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span class="step-badge">2</span>
+          <div>
+            <strong>Use Standard 5mm Graph Paper (or print our stencil):</strong>
+            <p style="color: #64748b; margin-top: 2px;">
+              Standard math/grid notebook paper with 5mm squares is perfect! A 25×25 code takes only 12.5 cm × 12.5 cm (about 5×5 inches) — the perfect size for a romantic greeting card or letter.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span class="step-badge">3</span>
+          <div>
+            <strong>Leave 1–2 White Squares (Quiet Zone) Before Drawing Your Heart:</strong>
+            <p style="color: #64748b; margin-top: 2px;">
+              Draw your beautiful red or pink heart outline around the entire code, but keep at least 1 or 2 blank grid squares between the QR modules and your heart stroke. This prevents camera algorithms from confusing the heart line with QR data.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span class="step-badge">4</span>
+          <div>
+            <strong>Use a High-Contrast Dark Pen:</strong>
+            <p style="color: #64748b; margin-top: 2px;">
+              A black gel pen, dark fine-liner, or rich crimson marker works best. Fill the dark squares solidly without leaving white patches.
+            </p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // 25x25 QR Matrix raw bit definition for https://bunnybirthday.vercel.app (Level L)
+    const rowData = [
+      [1,2,3,4,5,6,7, 10, 12, 14, 17, 19,20,21,22,23,24,25],
+      [1, 7, 9,10, 13, 16, 19, 25],
+      [1, 3,4,5, 7, 10,11,12, 16,17, 19, 21,22,23, 25],
+      [1, 3,4,5, 7, 9, 11,12,13,14,15,16,17, 19, 21,22,23, 25],
+      [1, 3,4,5, 7, 10,11,12,13, 17, 19, 21,22,23, 25],
+      [1, 7, 9,10, 13, 15,16, 19, 25],
+      [1,2,3,4,5,6,7, 9, 11, 13, 15, 17, 19,20,21,22,23,24,25],
+      [10],
+      [1,2,3,4,5, 7,8,9, 11,12,13,14,15,16,17,18, 20, 22, 24],
+      [1,2,3,4, 6, 10,11,12, 17,18, 20, 24],
+      [1,2,3,4, 6,7, 10, 16,17,18,19, 21,22, 24,25],
+      [3,4,5, 10, 15,16, 18,19, 25],
+      [1, 3,4,5,6,7,8,9,10, 13,14,15, 18,19, 21, 23,24,25],
+      [1, 12, 14,15, 17, 20, 22, 24],
+      [1, 5,6,7,8, 10, 16, 18, 20,21,22, 24,25],
+      [1, 3, 5, 9,10, 12,13, 15, 20,21, 25],
+      [1, 3,4, 7,8, 10,11, 13,14, 16,17,18,19,20,21, 23],
+      [9,10, 12, 14, 16,17, 21,22],
+      [1,2,3,4,5,6,7, 9, 13,14,15, 17, 19, 21, 23,24,25],
+      [1, 7, 11,12,13, 17, 21,22, 25],
+      [1, 3,4,5, 7, 9,10, 14,15,16,17,18,19,20,21, 23, 25],
+      [1, 3,4,5, 7, 9,10,11,12, 15, 18,19, 21,22,23],
+      [1, 3,4,5, 7, 9,10,11, 14,15,16,17, 22,23, 25],
+      [1, 7, 9,10, 17,18, 20,21,22, 25],
+      [1,2,3,4,5,6,7, 9, 13,14,15, 20,21,22,23,24,25]
+    ];
+
+    function isEye(r, c) {
+      if (r < 7 && c < 7) return true;
+      if (r < 7 && c >= 18) return true;
+      if (r >= 18 && c < 7) return true;
+      return false;
+    }
+
+    // Build the DOM matrix
+    const board = document.getElementById('qrBoard');
+    const cells = [];
+
+    for (let r = 0; r < 25; r++) {
+      const darkSet = new Set(rowData[r].map(c => c - 1));
+      cells[r] = [];
+      for (let c = 0; c < 25; c++) {
+        const div = document.createElement('div');
+        div.className = 'cell';
+        if (darkSet.has(c)) {
+          div.classList.add(isEye(r, c) ? 'eye' : 'dark');
+        }
+        board.appendChild(div);
+        cells[r][c] = div;
+      }
+    }
+
+    // Build row coordinate list
+    const coordsList = document.getElementById('coordsList');
+    rowData.forEach((row, idx) => {
+      // Group consecutive
+      const ranges = [];
+      let i = 0;
+      while (i < row.length) {
+        let start = row[i];
+        while (i + 1 < row.length && row[i + 1] === row[i] + 1) i++;
+        let end = row[i];
+        ranges.push(start === end ? `${start}` : `${start}–${end}`);
+        i++;
+      }
+
+      const div = document.createElement('div');
+      div.className = 'coord-row';
+      div.innerHTML = `<span><strong>Row ${idx + 1 < 10 ? '0' : ''}${idx + 1}</strong></span><span class="cols">${ranges.join(', ')}</span>`;
+      
+      div.addEventListener('mouseenter', () => highlightRow(idx));
+      div.addEventListener('mouseleave', () => clearHighlight(idx));
+      div.addEventListener('click', () => {
+        document.querySelectorAll('.coord-row').forEach(r => r.classList.remove('active'));
+        div.classList.add('active');
+        highlightRow(idx);
+      });
+
+      coordsList.appendChild(div);
+    });
+
+    let currentHighlighted = null;
+    function highlightRow(r) {
+      if (currentHighlighted !== null) clearHighlight(currentHighlighted);
+      currentHighlighted = r;
+      for (let c = 0; c < 25; c++) {
+        cells[r][c].classList.add('highlight');
+      }
+    }
+
+    function clearHighlight(r) {
+      for (let c = 0; c < 25; c++) {
+        cells[r][c].classList.remove('highlight');
+      }
+      currentHighlighted = null;
+    }
+  </script>
+</body>
+</html>
