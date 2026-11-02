@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code — For You, My Bunny 🌸</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,500;1,600;1,700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at 50% 20%, #ffeef3 0%, #fae6ec 50%, #f4d6e0 100%);
+      font-family: 'Poppins', -apple-system, sans-serif;
+      color: #4a0d1b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px 50px;
+    }
+    .container {
+      max-width: 680px;
+      width: 100%;
+      text-align: center;
+    }
+    .header-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #9d174d;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(225, 29, 72, 0.25);
+      padding: 6px 16px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(157, 23, 77, 0.08);
+    }
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-style: italic;
+      font-size: clamp(2rem, 5vw, 2.7rem);
+      font-weight: 700;
+      color: #671226;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 12px rgba(103, 18, 38, 0.12);
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #83273e;
+      margin-bottom: 24px;
+    }
+    .tab-pills {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.65);
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(225, 29, 72, 0.2);
+      margin-bottom: 24px;
+      gap: 4px;
+    }
+    .tab-btn {
+      border: none;
+      background: transparent;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #7b1e35;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: #8b1530;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(139, 21, 48, 0.3);
+    }
+    .card-preview {
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 20px 45px rgba(139, 21, 48, 0.16), 0 4px 14px rgba(0,0,0,0.04);
+      margin-bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid rgba(244, 63, 94, 0.15);
+    }
+    .qr-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 16px;
+      display: block;
+      transition: opacity 0.25s ease;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #e11d48 0%, #9f1239 100%);
+      color: #ffffff;
+      box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(225, 29, 72, 0.45);
+    }
+    .btn-secondary {
+      background: #ffffff;
+      color: #671226;
+      border: 1px solid rgba(103, 18, 38, 0.2);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    }
+    .btn-secondary:hover {
+      background: #fff5f7;
+      transform: translateY(-2px);
+    }
+    .info-box {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px dashed rgba(225, 29, 72, 0.3);
+      padding: 14px 20px;
+      border-radius: 18px;
+      font-size: 13px;
+      color: #7b1e35;
+      line-height: 1.6;
+    }
+    .url-chip {
+      display: inline-block;
+      font-family: monospace;
+      background: rgba(225, 29, 72, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #9f1239;
+    }
+    @media print {
+      body {
+        background: none;
+        padding: 0;
+      }
+      .tab-pills, .actions, .info-box, .header-badge {
+        display: none !important;
+      }
+      .card-preview {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="header-badge">✦ Official QR Code ✦</span>
+    <h1>For you, my bunny</h1>
+    <p class="subtitle">Scan with any phone camera to instantly open the secret birthday garden 🌸</p>
+
+    <div class="tab-pills">
+      <button class="tab-btn active" onclick="switchTab('card')">💖 Keepsake Card</button>
+      <button class="tab-btn" onclick="switchTab('diecut')">♡ Heart Badge</button>
+      <button class="tab-btn" onclick="switchTab('clean')">⚡ Minimalist QR</button>
+    </div>
+
+    <div class="card-preview">
+      <img id="qrImage" class="qr-img" src="/assets/qr_romantic_card.png" alt="Bunny Birthday QR Code" style="max-height: 520px;">
+    </div>
+
+    <div class="actions">
+      <a id="downloadBtn" href="/assets/qr_romantic_card.png" download="bunny_birthday_qr_card.png" class="btn btn-primary">
+        <span>⬇️</span>
+        <span id="downloadText">Download Card (PNG)</span>
+      </a>
+      <a id="downloadSvgBtn" href="/assets/qr_clean.svg" download="bunny_birthday_qr.svg" class="btn btn-secondary">
+        <span>🎨</span>
+        <span>Download Vector (SVG)</span>
+      </a>
+      <button onclick="copyUrl()" class="btn btn-secondary">
+        <span id="copyIcon">📋</span>
+        <span id="copyText">Copy Website URL</span>
+      </button>
+      <a href="https://bunnybirthday.vercel.app/" target="_blank" rel="noopener" class="btn btn-secondary">
+        <span>🚀</span>
+        <span>Open Website</span>
+      </a>
+    </div>
+
+    <div class="info-box">
+      <strong>Target URL:</strong> <span class="url-chip">https://bunnybirthday.vercel.app/</span><br>
+      <strong>Default Passcode:</strong> <span class="url-chip">0411</span> &bull; Encoded with <strong>Level H (30% Error Correction)</strong> for guaranteed instant camera scanning.
+    </div>
+  </div>
+
+  <script>
+    const qrData = {
+      card: {
+        src: '/assets/qr_romantic_card.png',
+        download: 'bunny_birthday_romantic_card.png',
+        text: 'Download Card (PNG)',
+        maxH: '520px'
+      },
+      diecut: {
+        src: '/assets/qr_heart_diecut.png',
+        download: 'bunny_birthday_heart_badge.png',
+        text: 'Download Heart Badge (PNG)',
+        maxH: '440px'
+      },
+      clean: {
+        src: '/assets/qr_clean.png',
+        download: 'bunny_birthday_qr_clean.png',
+        text: 'Download Clean QR (PNG)',
+        maxH: '400px'
+      }
+    };
+
+    function switchTab(type) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const img = document.getElementById('qrImage');
+      const dl = document.getElementById('downloadBtn');
+      const dlTxt = document.getElementById('downloadText');
+
+      img.style.opacity = '0.3';
+      setTimeout(() => {
+        img.src = qrData[type].src;
+        img.style.maxHeight = qrData[type].maxH;
+        dl.href = qrData[type].src;
+        dl.download = qrData[type].download;
+        dlTxt.textContent = qrData[type].text;
+        img.style.opacity = '1';
+      }, 150);
+    }
+
+    function copyUrl() {
+      navigator.clipboard.writeText('https://bunnybirthday.vercel.app/').then(() => {
+        const copyTxt = document.getElementById('copyText');
+        const copyIco = document.getElementById('copyIcon');
+        copyTxt.textContent = 'Copied to Clipboard! ✓';
+        copyIco.textContent = '✨';
+        setTimeout(() => {
+          copyTxt.textContent = 'Copy Website URL';
+          copyIco.textContent = '📋';
+        }, 2200);
+      });
+    }
+  </script>
+</body>
+</html>
